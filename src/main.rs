@@ -47,17 +47,9 @@ fn process_action(
 
     game_server_representation
         .game_state
-        .next_action(game_definition, wired_action.action);
+        .next_action(game_definition, wired_action.action)
+        .unwrap();
 
-    if game_server_representation
-        .game_state
-        .player_to_play()
-        .is_none()
-    {
-        game_server_representation
-            .game_state
-            .new_turn(game_definition);
-    }
     true
 }
 
@@ -67,9 +59,13 @@ fn main() {
     let (map_id, map) = game_definition.maps.iter().next().unwrap();
     let (id, class) = game_definition.classes.iter().next().unwrap();
 
-    let mut character_map_builder = CharacterMapBuilder::new(&map.teams, 1);
-    character_map_builder.add(Character::new(*id, Id::new(0), class, "Bob", Id::new(0)));
-    character_map_builder.add(Character::new(*id, Id::new(1), class, "Alice", Id::new(1)));
+    let mut character_map_builder = CharacterMapBuilder::new(&game_definition, &map.teams, 1);
+    character_map_builder
+        .add(Character::new(*id, Id::new(2), class, "Bob", Id::new(0)))
+        .unwrap();
+    character_map_builder
+        .add(Character::new(*id, Id::new(22), class, "Alice", Id::new(1)))
+        .unwrap();
 
     let game_state = GameState::new(
         &game_definition,
