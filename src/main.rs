@@ -1,7 +1,8 @@
 use pewcraft_common::game_definition::map::CellId;
+use pewcraft_common::game_definition::map::TeamId;
 use pewcraft_common::game_definition::GameDefinition;
 use pewcraft_common::id::MapBuilder;
-use pewcraft_common::io::character::{Character, CharacterId, Team};
+use pewcraft_common::io::character::{Character, CharacterId, CharacterMapBuilder};
 use pewcraft_common::io::Action;
 use pewcraft_common::io::GameState;
 use std::collections::HashMap;
@@ -69,15 +70,24 @@ fn process_action(
 fn main() {
     env_logger::init();
     let game_definition = game_definition_loader::load("./data");
-    let map = *game_definition.maps.iter().next().unwrap().0;
+    let (map_id, map) = game_definition.maps.iter().next().unwrap();
     let (id, class) = game_definition.classes.iter().next().unwrap();
 
-    let character_1 = Character::new(*id, CellId::new(0), class, "Bob", Team::Evil);
-    let character_2 = Character::new(*id, CellId::new(1), class, "Alice", Team::Eviler);
+    let mut character_map_builder = CharacterMapBuilder::new(&map.teams, 1);
+    character_map_builder.add(Character::new(
+        *id,
+        CellId::new(0),
+        class,
+        "Bob",
+        TeamId::new(0),
+    ));
+    character_map_builder.add(Character::new(
+        *id,
+        CellId::new(1),
+        class,
+        "Alice",
+        TeamId::new(1),
+    ));
 
-    let mut character_builder = MapBuilder::new();
-    character_builder.add(character_1);
-    character_builder.add(character_2);
-
-    let game_state = GameState::new(&game_definition, character_builder.build(), map);
+    let game_state = GameState::new(&game_definition, character_map_builder.build().unwrap(), *map_id);
 }

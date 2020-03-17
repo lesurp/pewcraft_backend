@@ -5,7 +5,7 @@
         "min": 0,
         "max": 0,
         "kind": "Square",
-        "target": "AllyOrSelf",
+        "target": "Ally",
         "needs_los": true
     },
     "effects": [ 0 ]
