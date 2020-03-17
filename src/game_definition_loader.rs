@@ -25,7 +25,7 @@ fn load_maps<P: AsRef<Path>>(maps_dir: P) -> IdMapBuilder<GameMap> {
         let entry = entry.unwrap();
         let map_file = entry.path();
 
-        let mut map = load_map(map_file);
+        let map = load_map(map_file);
         map.check_validity().unwrap();
         maps.add(map);
     }
