@@ -1,10 +1,5 @@
 use log::debug;
-use pewcraft_common::game_definition::class::{Class, ClassId};
-use pewcraft_common::game_definition::effect::Effect;
-use pewcraft_common::game_definition::map::GameMap;
-use pewcraft_common::game_definition::skill::{Skill, SkillId};
-use pewcraft_common::game_definition::GameDefinition;
-use pewcraft_common::id::MapBuilder;
+use pewcraft_common::{Class, Effect, GameDefinition, GameMap, Id, IdMapBuilder, Skill};
 use serde_json::from_reader;
 use std::collections::HashMap;
 use std::fs;
@@ -23,9 +18,9 @@ fn load_map<P: AsRef<Path>>(map_file: P) -> GameMap {
     from_reader(file).unwrap()
 }
 
-fn load_maps<P: AsRef<Path>>(maps_dir: P) -> MapBuilder<GameMap> {
+fn load_maps<P: AsRef<Path>>(maps_dir: P) -> IdMapBuilder<GameMap> {
     debug!("load_maps from: {:?}", maps_dir.as_ref());
-    let mut maps = MapBuilder::new();
+    let mut maps = IdMapBuilder::new();
     for entry in fs::read_dir(maps_dir).unwrap() {
         let entry = entry.unwrap();
         let map_file = entry.path();
@@ -58,11 +53,11 @@ fn load_class<P: AsRef<Path>>(class_file: P) -> Class {
 pub fn load<P: AsRef<Path>>(dir: P) -> GameDefinition {
     debug!("load game_definition from: {:?}", dir.as_ref());
     let dir = dir.as_ref();
-    let mut class_to_skills = HashMap::<ClassId, Vec<SkillId>>::new();
+    let mut class_to_skills = HashMap::<Id<Class>, Vec<Id<Skill>>>::new();
     let mut skill_to_classes = HashMap::new();
-    let mut class_builder = MapBuilder::new();
-    let mut skill_builder = MapBuilder::new();
-    let mut effect_builder = MapBuilder::new();
+    let mut class_builder = IdMapBuilder::new();
+    let mut skill_builder = IdMapBuilder::new();
+    let mut effect_builder = IdMapBuilder::new();
 
     for entry in fs::read_dir(dir.join(CLASSES_DIR)).unwrap() {
         let entry = entry.unwrap();

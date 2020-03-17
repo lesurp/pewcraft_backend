@@ -1,10 +1,4 @@
-use pewcraft_common::game_definition::map::CellId;
-use pewcraft_common::game_definition::map::TeamId;
-use pewcraft_common::game_definition::GameDefinition;
-use pewcraft_common::id::MapBuilder;
-use pewcraft_common::io::character::{Character, CharacterId, CharacterMapBuilder};
-use pewcraft_common::io::Action;
-use pewcraft_common::io::GameState;
+use pewcraft_common::{Action, Character, CharacterMapBuilder, GameDefinition, GameState, Id};
 use std::collections::HashMap;
 
 mod game_definition_loader;
@@ -17,7 +11,7 @@ struct Games {
 struct GameServerRepresentation {
     game_state: GameState,
     // Users "login" with a randomly generated string...
-    login_to_character_id: HashMap<String, CharacterId>,
+    login_to_character_id: HashMap<String, Id<Character>>,
 }
 
 struct WiredAction {
@@ -74,20 +68,12 @@ fn main() {
     let (id, class) = game_definition.classes.iter().next().unwrap();
 
     let mut character_map_builder = CharacterMapBuilder::new(&map.teams, 1);
-    character_map_builder.add(Character::new(
-        *id,
-        CellId::new(0),
-        class,
-        "Bob",
-        TeamId::new(0),
-    ));
-    character_map_builder.add(Character::new(
-        *id,
-        CellId::new(1),
-        class,
-        "Alice",
-        TeamId::new(1),
-    ));
+    character_map_builder.add(Character::new(*id, Id::new(0), class, "Bob", Id::new(0)));
+    character_map_builder.add(Character::new(*id, Id::new(1), class, "Alice", Id::new(1)));
 
-    let game_state = GameState::new(&game_definition, character_map_builder.build().unwrap(), *map_id);
+    let game_state = GameState::new(
+        &game_definition,
+        character_map_builder.build().unwrap(),
+        *map_id,
+    );
 }
