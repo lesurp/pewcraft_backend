@@ -1,75 +1,172 @@
-use pewcraft_common::{Action, Character, CharacterMapBuilder, GameDefinition, GameState, Id};
+#![feature(proc_macro_hygiene, decl_macro)]
+
+use crate::error::Error;
+use lazy_static::lazy_static;
+use pewcraft_common::{
+    game::{Character, CharacterMapBuilder, GameDefinition, GameMap, GameState, Id},
+    io::{WireAction, WireCreatedChar, WireCreatedGame, WireNewCharRequest, WireNewGameRequest},
+};
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+use rocket::{get, post, routes, State};
+use rocket_contrib::json::Json;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
-mod game_definition_loader;
-
-struct Games {
-    // games are identified with a randomly generated string...
-    game_states: HashMap<String, GameServerRepresentation>,
+lazy_static! {
+    static ref GAME: GameDefinition = game_definition_loader::load("./data");
 }
 
-struct GameServerRepresentation {
+mod error;
+mod game_definition_loader;
+
+type ServerRunningGames = Mutex<HashMap<String, ServerRunningGame>>;
+type ServerBuiltGames = Mutex<HashMap<String, ServerBuiltGame>>;
+
+struct ServerRunningGame {
     game_state: GameState,
     // Users "login" with a randomly generated string...
     login_to_character_id: HashMap<String, Id<Character>>,
 }
 
-struct WiredAction {
-    login: String,
-    action: Action,
+struct ServerBuiltGame {
+    // Users "login" with a randomly generated string...
+    login_to_character_id: HashMap<String, Id<Character>>,
+    character_map_builder: CharacterMapBuilder<'static>,
+    map: Id<GameMap>,
 }
 
-fn process_action(
-    game_definition: &GameDefinition,
-    game_server_representation: &mut GameServerRepresentation,
-    wired_action: WiredAction,
-) -> bool {
-    let character_id = game_server_representation
-        .login_to_character_id
-        .get(&wired_action.login);
-    let character_id = if let Some(id) = character_id {
-        *id
-    } else {
-        return false;
-    };
-
-    let to_play_id = game_server_representation
-        .game_state
-        .player_to_play()
-        .expect(
-        "A player should always come next - we need to either start a new turn or finish the game!",
+#[post("/new_game", data = "<new_game>")]
+fn create_game(
+    builders: State<ServerBuiltGames>,
+    new_game: Json<WireNewGameRequest>,
+) -> Json<WireCreatedGame> {
+    let s = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .collect::<String>();
+    builders.lock().unwrap().insert(
+        s.clone(),
+        ServerBuiltGame {
+            login_to_character_id: Default::default(),
+            character_map_builder: CharacterMapBuilder::new(
+                &GAME,
+                new_game.map,
+                new_game.team_size,
+            ),
+            map: new_game.map,
+        },
     );
+    Json(WireCreatedGame(s))
+}
 
-    let is_correct_id = to_play_id == character_id;
-    if !is_correct_id {
-        return false;
+#[post("/<game>", data = "<new_character>")]
+fn create_character(
+    games: State<ServerRunningGames>,
+    builders: State<ServerBuiltGames>,
+    game: String,
+    new_character: Json<WireNewCharRequest>,
+) -> Result<Json<WireCreatedChar>, ()> {
+    let mut builders = builders.lock().unwrap();
+
+    // TODO wrong game id
+    let builder = builders.get_mut(&game).ok_or(())?;
+
+    // TODO wrong class id
+    let class = GAME.classes.get(new_character.class).ok_or(())?;
+    let req = new_character.into_inner();
+    let c = Character {
+        class: req.class,
+        team: req.team,
+        position: req.position,
+        current_health: class.health,
+        current_mana: class.mana,
+        buffs: Default::default(),
+        name: req.name,
+    };
+    // TODO many things...
+    let character_id = builder.character_map_builder.add(c).map_err(|_| ())?;
+
+    // Player's "login" after successful character creation
+    let s = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .collect::<String>();
+    builder
+        .login_to_character_id
+        .insert(s.clone(), character_id);
+
+    // If game is ready to be start, consume the builder
+    if builder.character_map_builder.can_build() {
+        let builder = builders.remove(&game).unwrap();
+        let character_map = builder.character_map_builder.build();
+        let login_to_character_id = builder.login_to_character_id;
+        let map = builder.map;
+        games.lock().unwrap().insert(
+            game,
+            ServerRunningGame {
+                login_to_character_id,
+                game_state: GameState::new(&GAME, character_map, map),
+            },
+        );
     }
 
-    game_server_representation
-        .game_state
-        .next_action(game_definition, wired_action.action)
-        .unwrap();
+    Ok(Json(WireCreatedChar(s)))
+}
 
-    true
+#[post("/<game>/<login>", data = "<action>")]
+fn character_action(
+    games: State<ServerRunningGames>,
+    game: String,
+    login: String,
+    action: Json<WireAction>,
+) -> Result<(), ()> {
+    let mut games = games.lock().unwrap();
+    // TODO wrong game id
+    let game = games.get_mut(&game).ok_or(())?;
+    // TODO invalid player
+    let character_id = game.login_to_character_id.get(&login).ok_or(())?;
+
+    let curr_char_id = game.game_state.player_to_play();
+
+    if curr_char_id != *character_id {
+        // TODO wrong character
+        return Err(());
+    }
+
+    // TODO
+    game.game_state
+        .next_action(&GAME, (action.0).0)
+        .map_err(|_| ())?;
+
+    // TODO
+    Ok(())
+}
+
+#[get("/game")]
+fn load_game() -> Json<GameDefinition> {
+    Json(GAME.clone())
+}
+#[get("/<game>")]
+fn update_game_state(
+    games: State<ServerRunningGames>,
+    game: String,
+) -> Result<Json<GameState>, ()> {
+    let games = games.lock().unwrap();
+    let game = games.get(&game).ok_or(())?;
+    Ok(Json(game.game_state.clone()))
 }
 
 fn main() {
     env_logger::init();
-    let game_definition = game_definition_loader::load("./data");
-    let (map_id, map) = game_definition.maps.iter().next().unwrap();
-    let (id, class) = game_definition.classes.iter().next().unwrap();
-
-    let mut character_map_builder = CharacterMapBuilder::new(&game_definition, &map.teams, 1);
-    character_map_builder
-        .add(Character::new(*id, Id::new(2), class, "Bob", Id::new(0)))
-        .unwrap();
-    character_map_builder
-        .add(Character::new(*id, Id::new(22), class, "Alice", Id::new(1)))
-        .unwrap();
-
-    let game_state = GameState::new(
-        &game_definition,
-        character_map_builder.build().unwrap(),
-        *map_id,
-    );
+    let games_running: ServerRunningGames = Default::default();
+    let game_builders: ServerBuiltGames = Default::default();
+    rocket::ignite()
+        .manage(game_builders)
+        .manage(games_running)
+        .mount(
+            "/",
+            routes![create_game, create_character, character_action, load_game],
+        )
+        .launch();
 }
