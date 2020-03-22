@@ -161,6 +161,11 @@ fn main() {
     env_logger::init();
     let games_running: ServerRunningGames = Default::default();
     let game_builders: ServerBuiltGames = Default::default();
+    {
+        // Force the lazy_static initialization before starting the server
+        // If some issues arises during the deserialization, I wanna see it right away...
+        let _ = GAME.classes.ids();
+    }
     rocket::ignite()
         .manage(game_builders)
         .manage(games_running)
