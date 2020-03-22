@@ -148,13 +148,13 @@ fn load_game() -> Json<GameDefinition> {
     Json(GAME.clone())
 }
 #[get("/<game>")]
-fn update_game_state(
+fn game_state(
     games: State<ServerRunningGames>,
     game: String,
-) -> Result<Json<GameState>, ()> {
+) -> Result<Json<Option<GameState>>, ()> {
     let games = games.lock().unwrap();
-    let game = games.get(&game).ok_or(())?;
-    Ok(Json(game.game_state.clone()))
+    let game_state = games.get(&game).map(|g| g.game_state.clone());
+    Ok(Json(game_state))
 }
 
 fn main() {
@@ -171,7 +171,13 @@ fn main() {
         .manage(games_running)
         .mount(
             "/",
-            routes![create_game, create_character, character_action, load_game],
+            routes![
+                create_game,
+                create_character,
+                character_action,
+                load_game,
+                game_state
+            ],
         )
         .launch();
 }
