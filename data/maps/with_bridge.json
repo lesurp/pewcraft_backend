@@ -1,7 +1,7 @@
 {
-    "name": "Plain with pillars",
-    "width": 5,
-    "height": 5,
+    "name": "Plain with bridge",
+    "width": 4,
+    "height": 6,
     "teams": [
         [ "Evil guys",
             [
@@ -31,7 +31,15 @@
         },
         {
             "height": 0,
-            "attribute": "None"
+            "attribute": "Water"
+        },
+        {
+            "height": 0,
+            "attribute": "Water"
+        },
+        {
+            "height": 0,
+            "attribute": "Water"
         },
         {
             "height": 0,
@@ -39,7 +47,15 @@
         },
         {
             "height": 0,
-            "attribute": "None"
+            "attribute": "Water"
+        },
+        {
+            "height": 0,
+            "attribute": "Water"
+        },
+        {
+            "height": 0,
+            "attribute": "Water"
         },
         {
             "height": 0,
@@ -47,35 +63,15 @@
         },
         {
             "height": 0,
-            "attribute": "None"
+            "attribute": "Water"
         },
         {
             "height": 0,
-            "attribute": "None"
+            "attribute": "Water"
         },
         {
             "height": 0,
-            "attribute": "None"
-        },
-        {
-            "height": 0,
-            "attribute": "Wall"
-        },
-        {
-            "height": 0,
-            "attribute": "None"
-        },
-        {
-            "height": 0,
-            "attribute": "Wall"
-        },
-        {
-            "height": 0,
-            "attribute": "None"
-        },
-        {
-            "height": 0,
-            "attribute": "None"
+            "attribute": "Water"
         },
         {
             "height": 0,

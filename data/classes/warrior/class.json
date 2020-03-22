@@ -1,5 +1,6 @@
 {
     "name": "Warrior",
+    "description": "A fiercy and brave fighter, thanks to his wits, or lack thereof",
     "health": 15000,
     "mana": 0,
     "swiftness": 10000,
