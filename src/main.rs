@@ -111,7 +111,7 @@ fn create_character(
         );
     }
 
-    Ok(Json(WireCreatedChar(s)))
+    Ok(Json(WireCreatedChar(s, character_id)))
 }
 
 #[post("/<game>/<login>", data = "<action>")]
