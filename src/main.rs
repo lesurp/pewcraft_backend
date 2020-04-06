@@ -1,10 +1,12 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-use crate::error::Error;
 use lazy_static::lazy_static;
 use pewcraft_common::{
     game::{Character, CharacterMapBuilder, GameDefinition, GameMap, GameState, Id},
-    io::{WireAction, WireCreatedChar, WireCreatedGame, WireNewCharRequest, WireNewGameRequest},
+    io::{
+        WireAction, WireCreatedChar, WireCreatedGame, WireGetGame, WireNewCharRequest,
+        WireNewGameRequest,
+    },
 };
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -34,6 +36,7 @@ struct ServerBuiltGame {
     login_to_character_id: HashMap<String, Id<Character>>,
     character_map_builder: CharacterMapBuilder<'static>,
     map: Id<GameMap>,
+    team_size: usize,
 }
 
 #[post("/new_game", data = "<new_game>")]
@@ -55,9 +58,33 @@ fn create_game(
                 new_game.team_size,
             ),
             map: new_game.map,
+            team_size: new_game.team_size,
         },
     );
-    Json(WireCreatedGame(s))
+    Json(WireCreatedGame {
+        game_id: s,
+        map: new_game.map,
+        team_size: new_game.team_size,
+    })
+}
+
+#[get("/<game>")]
+fn get_game(
+    games: State<ServerRunningGames>,
+    builders: State<ServerBuiltGames>,
+    game: String,
+) -> Json<WireGetGame> {
+    let builders = builders.lock().unwrap();
+    if let Some(builder) = builders.get(&game) {
+        return Json(WireGetGame::BeingCreated(builder.map, builder.team_size));
+    }
+
+    let games = games.lock().unwrap();
+    if let Some(game) = games.get(&game) {
+        return Json(WireGetGame::Running(game.game_state.clone()));
+    }
+
+    Json(WireGetGame::None)
 }
 
 #[post("/<game>", data = "<new_character>")]
